@@ -38,11 +38,8 @@ Add your app configuration in an **.env**  see below for props and example.
 | `GOODI_USER` | The username you use to sign into goodi |
 | `GOODI_PASS` | The password you use to sign into goodi |
 | `MAX_AMOUNT` | The maximum value of the voucher|
-| `SUPERMARKETS` | Which supermarkets currently supports RAMI,SHUFERSAL,VICTORY|
-| `BROWSER_NAME` | Browser supports firefox or chrome |
-| `showLineNumbers?` | Whether to show line numbers next to each line. |
-| `readOnly?` | Make the editor read only. |
-| `autoFocus?` | Focus the code editor on component mount. |
+| `SUPERMARKETS` | Comma seperated string of one or more of: RAMI,SHUFERSAL,VICTORY|
+| `BROWSER_NAME` | Browser: firefox or chrome |
 
 ### .env Example
 ```
