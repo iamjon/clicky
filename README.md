@@ -12,7 +12,7 @@ Also remember use this at your own risk that we aren't responsible for any bugs 
 # Getting started
 
  - Make sure that you have [node](https://nodejs.org/en/) installed on your pc.
- - If you don't have node installed find a nerd who will do it for you.
+     - If you don't have node installed find a nerd who will do it for you.
  - Download or clone clicky.
 	 - If you downloaded clicky, move it somewhere safe and unzip it.
 	 - If you cloned clicky, well done nerd.
