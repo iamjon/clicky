@@ -122,14 +122,19 @@ module.exports = {
       }
     }
 
-    const jqWaitNClickElement = (element, done) => {
-      const wait_until_element_appear = setInterval(() => {
-        if ($(element).length !== 0) {
-            $(element).click();
-            done(element);
-            clearInterval(wait_until_element_appear);
-        }
-      }, 0);
+    const jqWaitNClickElement = ({element, allow = true}, done) => {
+      if (allow){
+        const wait_until_element_appear = setInterval(() => {
+          if ($(element).length !== 0) {
+              $(element).click();
+              done({element, allow, 'noallow': 'should allow'});
+              clearInterval(wait_until_element_appear);
+          }
+        }, 0);
+      } else {
+        done({element, allow, 'noallow': 'no allow'})
+      }
+      
     }
 
     const isValueGood = (result) => {
@@ -151,48 +156,68 @@ module.exports = {
     };
 
     const checkSuper = async (market) => {
+      const jqObject = {element:orderRow, allow: false};
+      let hasRow = false;
       const enterSearch = (searchText, done) => {
-        console.log('enterSearch');
         $("#txbInnerHomeSearch").focus().val(searchText).trigger("keyup");
         if ($('.RLOuterRow:visible:first').length){
           $('.RLOuterRow:visible:first img').click();
+          setTimeout(done, 2000, 'checkSuper Good');
+        }else {
+          done('checkSuper bad')
         }
-        setTimeout(done, 2000, 'checkSuper');
       };
 
       const openVoucherRow = ({voucherRow}, done) => {
         if ($(voucherRow).length){
           $(voucherRow).click();
+          setTimeout(done, 2000, true);
+        } else {
+          done(false)
         }
-        setTimeout(done, 2000, 'openVoucherRow');
+      };
+
+      const hasVoucherRow = (result) => {
+        jqObject.allow = result.value;
+        hasRow = result.value;
+        return true;
       };
 
       const getVoucher = ({orderRow}, done) => {
-        const value = $(`${orderRow} .RLMealPrice`).html();
-        setTimeout(done, 2000, value);
+        if ($(orderRow).length){
+          const value = $(`${orderRow} .RLMealPrice`).html();
+          setTimeout(done, 2000, value);
+        }
+        else {
+          done({nvc:'no vocucher row', orderRow})
+        }
       };
 
       const setVoucher = (result) => {
-        isValueGood(result);
-        if(value_is_good){
-          voucherToBuy = market.voucherKey;
+        if (hasRow){
+          isValueGood(result);
+          if(value_is_good){
+            voucherToBuy = market.voucherKey;
+            return true;
+          }
         }
-        return true;
+        return false;
       };
 
       await browser
       .executeAsync(enterSearch, [market.searchText], consoleResult)
-      .executeAsync(openVoucherRow, [{voucherRow}], consoleResult)
-      .executeAsync(jqWaitNClickElement, [orderRow], consoleResult)
+      .executeAsync(openVoucherRow, [{voucherRow}], hasVoucherRow)
+      .executeAsync(jqWaitNClickElement, [jqObject], consoleResult)
       .executeAsync(getVoucher, [{orderRow}], setVoucher)
     }
 
     const completeOrder = async () => {
+      console.log('completing order');
       await browser
       .click(`${orderRow} .OrderButton`)
       .waitForElementVisible('#divOrderButton', 10000)
-      .executeAsync(jqWaitNClickElement, ['#divOrderButton'], consoleResult)
-      .executeAsync(jqWaitNClickElement, ['.divSendOrdders'], consoleResult)
+      .executeAsync(jqWaitNClickElement, [{element:'#divOrderButton'}], consoleResult)
+      .executeAsync(jqWaitNClickElement, [{element:'.divSendOrdders'}], consoleResult)
       .pause(10000)
       .getText("#UCLeftAmount", function (result) {
         if (result.value) {

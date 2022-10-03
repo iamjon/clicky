@@ -52,12 +52,14 @@ module.exports = {
     firefox: {
       desiredCapabilities : {
         browserName : 'firefox',
+        javascriptEnabled : true,
+        acceptSslCerts : true,
         alwaysMatch: {
           // Enable this if you encounter unexpected SSL certificate errors in Firefox
           // acceptInsecureCerts: true,
           'moz:firefoxOptions': {
             args: [
-              '-devtools'
+              '-devtools',
               // '-headless',
               // '-verbose'
             ],
