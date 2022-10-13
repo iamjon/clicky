@@ -27,14 +27,21 @@ module.exports = {
     }
     
     const checkPopup = async () => {
-      const popup = '#divClose';
-      return await browser.element('css selector', popup, async function(result){
-        if(result.status != -1) {
-          await browser.click(popup);
-          return true;
+      const closePopup = ({popup}, done) => {
+        if ($(popup).length){
+          $(popup).click();
+          setTimeout(done, 2000, `${popup} clicked`);
+        } else {
+          done(`no ${popup}`)
         }
-        return true;
-    });
+      };
+
+      const popups = ['#divClose','#btnCloseMessageWindow'];
+      for (let index = 0; index < popups.length; index++) {
+        const popup = popups[index];
+        await browser.executeAsync(closePopup, [popup], consoleResult)
+      }
+      return true;
     }
 
     const checkShekels = async () => {
@@ -237,8 +244,8 @@ module.exports = {
     };
       
     
+    await checkShekels(); //Logs in 
     await checkPopup();
-    await checkShekels();
     await checkSupers();
     
     if (voucherToBuy !== '') {
