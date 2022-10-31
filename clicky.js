@@ -32,14 +32,14 @@ module.exports = {
           $(popup).click();
           setTimeout(done, 2000, `${popup} clicked`);
         } else {
-          done(`no ${popup}`)
+          done({popup:'no popup', popup})
         }
       };
 
       const popups = ['#divClose','#btnCloseMessageWindow'];
       for (let index = 0; index < popups.length; index++) {
         const popup = popups[index];
-        await browser.executeAsync(closePopup, [popup], consoleResult)
+        await browser.executeAsync(closePopup, [{popup}], consoleResult)
       }
       return true;
     }
