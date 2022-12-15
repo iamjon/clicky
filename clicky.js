@@ -1,13 +1,17 @@
 //npx nightwatch clicky.js
 
 module.exports = {
+  before: function (browser) {
+    // see https://github.com/nightwatchjs/nightwatch/blob/main/examples/globalsModule.js#L12
+    browser.globals.waitForConditionTimeout = 5000;
+  },
   CLICKY: async function (browser) {
     let daily_amount = 0;
     let we_spent = 0;
     let is_daily_good;
     let value = 0;
     let value_is_good = false;
-    let voucherToBuy = '';
+    let voucherToBuy = "";
     const voucherRow = "div.SubTab.MealTab.Row";
     const orderRow = "div.MealListRow:nth-of-type(1)";
 
@@ -23,38 +27,38 @@ module.exports = {
       VICTORY: {
         searchText: "ויקטורי",
         voucherKey: "victory",
-      }
-    }
-    
+      },
+    };
+
     const checkPopup = async () => {
-      const closePopup = ({popup}, done) => {
-        if ($(popup).length){
+      const closePopup = ({ popup }, done) => {
+        if ($(popup).length) {
           $(popup).click();
           setTimeout(done, 2000, `${popup} clicked`);
         } else {
-          done({popup:'no popup', popup})
+          done({ popup: "no popup", popup });
         }
       };
 
-      const popups = ['#divClose','#btnCloseMessageWindow'];
+      const popups = ["#divClose", "#btnCloseMessageWindow"];
       for (let index = 0; index < popups.length; index++) {
         const popup = popups[index];
-        await browser.executeAsync(closePopup, [{popup}], consoleResult)
+        await browser.executeAsync(closePopup, [{ popup }], consoleResult);
       }
       return true;
-    }
+    };
 
     const checkShekels = async () => {
       return await browser
-      .url("https://www.goodi.co.il/")
-      .assert.visible("input[id=txbLoginUserName]")
-      .setValue("input[id=txbLoginUserName]", browser.globals.goodi_user)
-      .assert.visible("input[id=txbPassword]")
-      .setValue("input[id=txbPassword]", browser.globals.goodi_pass)
-      .assert.visible("input[id=divSubmitLogin]")
-      .click("input[id=divSubmitLogin]")
-      .waitForElementVisible("#UCLeftAmount", 10000)
-      .getText("#UCLeftAmount", function (result) {
+        .url("https://www.goodi.co.il/")
+        .assert.visible("input[id=txbLoginUserName]")
+        .setValue("input[id=txbLoginUserName]", browser.globals.goodi_user)
+        .assert.visible("input[id=txbPassword]")
+        .setValue("input[id=txbPassword]", browser.globals.goodi_pass)
+        .assert.visible("input[id=divSubmitLogin]")
+        .click("input[id=divSubmitLogin]")
+        .waitForElementVisible("#UCLeftAmount", 10000)
+        .getText("#UCLeftAmount", function (result) {
           if (result.value) {
             daily_amount = parseInt(result.value.replace("₪", ""));
             if (!isNaN(daily_amount)) {
@@ -70,92 +74,105 @@ module.exports = {
     };
 
     const isReady = async () => {
-      const startTime =  new Date();
+      const startTime = new Date();
       let id;
       let foundIt = false;
       const ready = "#divNoSearchResultMessage";
       const onElement = (result) => {
-        if(result.status === -1) {
+        if (result.status === -1) {
           foundIt = true;
-        } 
-      }
-      
+        }
+      };
 
-      return new Promise ((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         const checkElement = () => {
-          browser.element('css selector', ready, onElement);
-          let timeDiff =  new Date() - startTime; //in ms 
-          let seconds = Math.round(timeDiff/= 1000);
+          browser.element("css selector", ready, onElement);
+          let timeDiff = new Date() - startTime; //in ms
+          let seconds = Math.round((timeDiff /= 1000));
           console.log(`Waiting for list to load, ${seconds} have passed`);
           if (foundIt) {
             resolve(true);
             clearInterval(id);
           }
-        }
-        id = setInterval(checkElement, 3000)
+        };
+        id = setInterval(checkElement, 3000);
       });
-    }
+    };
 
     const closeTabs = async () => {
-      const closeTab = () => {
-        $('#tabAllRestaurants').click() 
+      const closeTab = (done) => {
+        if ($("#divCloseTab").length) {
+          $("#divCloseTab").click();
+          setTimeout(done, 3000, "Close Tab GOOD");
+        } else {
+          done("Close Tab bad");
+        }
       };
-      await browser
-      .execute(closeTab, [])
-      .pause(5000);
+
+      const closeRow = (done) => {
+        if ($("#topSitting").length) {
+          $("#topSitting").click();
+          setTimeout(done, 2000, "Close Row GOOD");
+        } else {
+          done("Close Row bad");
+        }
+      };
+
+      await browser.executeAsync(closeRow, [], consoleResult);
+      await browser.executeAsync(closeTab, [], consoleResult);
+
       return true;
-    }
+    };
 
     const goToTakeAway = async () => {
-      await browser
-      .assert.visible("div[id=divTioTakAwayTab]")
-      .click("div[id=divTioTakAwayTab]");
+      await browser.assert
+        .visible("div[id=divTioTakAwayTab]")
+        .click("div[id=divTioTakAwayTab]");
       await isReady();
       await browser.assert.visible("input[id=txbInnerHomeSearch]");
-    }
-    
+    };
+
     const checkSupers = async () => {
-      const supers = browser.globals.supermarkets.split(',');
+      const supers = browser.globals.supermarkets.split(",");
       for (let index = 0; index < supers.length; index++) {
         const market = supers[index];
-        if (voucherToBuy !== '') {
+        if (voucherToBuy !== "") {
           break;
         }
         if (index > 0) {
           await closeTabs();
         }
         await goToTakeAway();
-        await checkSuper(supersConfig[market])
+        await checkSuper(supersConfig[market]);
       }
-    }
+    };
 
-    const jqWaitNClickElement = ({element, allow = true}, done) => {
-      if (allow){
+    const jqWaitNClickElement = ({ element, allow = true }, done) => {
+      if (allow) {
         const wait_until_element_appear = setInterval(() => {
           if ($(element).length !== 0) {
-              $(element).click();
-              done({element, allow, 'noallow': 'should allow'});
-              clearInterval(wait_until_element_appear);
+            $(element).click();
+            done({ element, allow, noallow: "should allow" });
+            clearInterval(wait_until_element_appear);
           }
         }, 0);
       } else {
-        done({element, allow, 'noallow': 'no allow'})
+        done({ element, allow, noallow: "no allow" });
       }
-      
-    }
+    };
 
     const isValueGood = (result) => {
       if (result.value) {
         value = parseInt(result.value);
         if (!isNaN(value)) {
-          console.log('is value good', value);
+          console.log("is value good", value);
           value_is_good = value && value < parseInt(browser.globals.max_amount);
           return value_is_good;
         }
       }
       value_is_good = false;
       return value_is_good;
-    }
+    };
 
     const consoleResult = (result) => {
       console.log(`consoleResult ${JSON.stringify(result)}`);
@@ -163,24 +180,24 @@ module.exports = {
     };
 
     const checkSuper = async (market) => {
-      const jqObject = {element:orderRow, allow: false};
+      const jqObject = { element: orderRow, allow: false };
       let hasRow = false;
       const enterSearch = (searchText, done) => {
         $("#txbInnerHomeSearch").focus().val(searchText).trigger("keyup");
-        if ($('.RLOuterRow:visible:first').length){
-          $('.RLOuterRow:visible:first img').click();
-          setTimeout(done, 2000, 'checkSuper Good');
-        }else {
-          done('checkSuper bad')
+        if ($(".RLOuterRow:visible:first").length) {
+          $(".RLOuterRow:visible:first img").click();
+          setTimeout(done, 2000, "checkSuper Good");
+        } else {
+          done("checkSuper bad");
         }
       };
 
-      const openVoucherRow = ({voucherRow}, done) => {
-        if ($(voucherRow).length){
+      const openVoucherRow = ({ voucherRow }, done) => {
+        if ($(voucherRow).length) {
           $(voucherRow).click();
           setTimeout(done, 2000, true);
         } else {
-          done(false)
+          done(false);
         }
       };
 
@@ -190,20 +207,20 @@ module.exports = {
         return true;
       };
 
-      const getVoucher = ({orderRow}, done) => {
-        if ($(orderRow).length){
+      const getVoucher = ({ orderRow }, done) => {
+        if ($(orderRow).length) {
           const value = $(`${orderRow} .RLMealPrice`).html();
           setTimeout(done, 2000, value);
-        }
-        else {
-          done({nvc:'no vocucher row', orderRow})
+        } else {
+          done({ nvc: "no vocucher row", orderRow });
         }
       };
 
       const setVoucher = (result) => {
-        if (hasRow){
+        console.log("setVoucher", result);
+        if (hasRow) {
           isValueGood(result);
-          if(value_is_good){
+          if (value_is_good) {
             voucherToBuy = market.voucherKey;
             return true;
           }
@@ -212,46 +229,53 @@ module.exports = {
       };
 
       await browser
-      .executeAsync(enterSearch, [market.searchText], consoleResult)
-      .executeAsync(openVoucherRow, [{voucherRow}], hasVoucherRow)
-      .executeAsync(jqWaitNClickElement, [jqObject], consoleResult)
-      .executeAsync(getVoucher, [{orderRow}], setVoucher)
-    }
+        .executeAsync(enterSearch, [market.searchText], consoleResult)
+        .executeAsync(openVoucherRow, [{ voucherRow }], hasVoucherRow)
+        .executeAsync(jqWaitNClickElement, [jqObject], consoleResult)
+        .executeAsync(getVoucher, [{ orderRow }], setVoucher);
+    };
 
     const completeOrder = async () => {
-      console.log('completing order');
+      console.log("completing order");
       await browser
-      .click(`${orderRow} .OrderButton`)
-      .waitForElementVisible('#divOrderButton', 10000)
-      .executeAsync(jqWaitNClickElement, [{element:'#divOrderButton'}], consoleResult)
-      .executeAsync(jqWaitNClickElement, [{element:'.divSendOrdders'}], consoleResult)
-      .pause(10000)
-      .getText("#UCLeftAmount", function (result) {
-        if (result.value) {
-          we_spent = parseInt(result.value.replace("₪", ""));
-          if (isNaN(we_spent)) {
-            we_spent = 0
+        .click(`${orderRow} .OrderButton`)
+        .waitForElementVisible("#divOrderButton", 10000)
+        .executeAsync(
+          jqWaitNClickElement,
+          [{ element: "#divOrderButton" }],
+          consoleResult
+        )
+        .executeAsync(
+          jqWaitNClickElement,
+          [{ element: ".divSendOrdders" }],
+          consoleResult
+        )
+        .pause(10000)
+        .getText("#UCLeftAmount", function (result) {
+          if (result.value) {
+            we_spent = parseInt(result.value.replace("₪", ""));
+            if (isNaN(we_spent)) {
+              we_spent = 0;
+            }
           }
-        }
-        this.assert.equal(
-          true,
-          (150 - we_spent > 0),
-          `we didn't spend anything: ${we_spent}`
-        );
-      });
-      
+          this.assert.equal(
+            true,
+            150 - we_spent > 0,
+            `we didn't spend anything: ${we_spent}`
+          );
+        });
+
       return true;
     };
-      
-    
-    await checkShekels(); //Logs in 
+
+    await checkShekels(); //Logs in
     await checkPopup();
     await checkSupers();
-    
-    if (voucherToBuy !== '') {
+
+    if (voucherToBuy !== "") {
       await completeOrder();
-    } 
-   
+    }
+
     browser.saveScreenshot("./screenshots/yo.png");
   },
 };
