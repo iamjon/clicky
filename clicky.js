@@ -100,6 +100,15 @@ module.exports = {
     };
 
     const closeTabs = async () => {
+      const clearSearch = (done) => {
+        if ($("#divResetSearch").length) {
+          $("#divResetSearch").click();
+          setTimeout(done, 2000, "Clear Search GOOD");
+        } else {
+          done("Clear Search bad");
+        }
+      };
+
       const closeTab = (done) => {
         if ($("#divCloseTab").length) {
           $("#divCloseTab").click();
@@ -120,6 +129,7 @@ module.exports = {
 
       await browser.executeAsync(closeRow, [], consoleResult);
       await browser.executeAsync(closeTab, [], consoleResult);
+      await browser.executeAsync(clearSearch, [], consoleResult);
 
       return true;
     };
