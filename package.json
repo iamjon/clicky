@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "clicky.js",
-  "devDependencies": {
-    "geckodriver": "^3.0.2",
-    "nightwatch-axe-verbose": "^2.0.2"
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "lodash": "^4.17.21",
+    "prettier": "^3.2.3",
+    "puppeteer": "^21.7.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

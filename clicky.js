@@ -1,291 +1,217 @@
-//npx nightwatch clicky.js
+const puppeteer = require("puppeteer");
+require("dotenv").config();
 
-module.exports = {
-  before: function (browser) {
-    // see https://github.com/nightwatchjs/nightwatch/blob/main/examples/globalsModule.js#L12
-    browser.globals.waitForConditionTimeout = 5000;
+const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+
+let is_daily_good = false;
+let voucherToBuy = "";
+
+let daily_amount = 0;
+let we_spent = 0;
+const voucherRow = "div.SubTab.MealTab.Row";
+
+const supersConfig = {
+  RAMI: {
+    searchText: "רמי",
+    voucherKey: "rami",
   },
-  CLICKY: async function (browser) {
-    let daily_amount = 0;
-    let we_spent = 0;
-    let is_daily_good;
-    let value = 0;
-    let value_is_good = false;
-    let voucherToBuy = "";
-    const voucherRow = "div.SubTab.MealTab.Row";
-    const orderRow = "div.MealListRow:nth-of-type(1)";
-
-    const supersConfig = {
-      RAMI: {
-        searchText: "רמי",
-        voucherKey: "rami",
-      },
-      SHUFERSAL: {
-        searchText: "שופרסל",
-        voucherKey: "shufer",
-      },
-      VICTORY: {
-        searchText: "ויקטורי",
-        voucherKey: "victory",
-      },
-    };
-
-    const checkPopup = async () => {
-      const closePopup = ({ popup }, done) => {
-        if ($(popup).length) {
-          $(popup).click();
-          setTimeout(done, 2000, `${popup} clicked`);
-        } else {
-          done({ popup: "no popup", popup });
-        }
-      };
-
-      const popups = ["#divClose", "#btnCloseMessageWindow"];
-      for (let index = 0; index < popups.length; index++) {
-        const popup = popups[index];
-        await browser.executeAsync(closePopup, [{ popup }], consoleResult);
-      }
-      return true;
-    };
-
-    const checkShekels = async () => {
-      return await browser
-        .url("https://www.goodi.co.il/")
-        .assert.visible("input[id=txbLoginUserName]")
-        .setValue("input[id=txbLoginUserName]", browser.globals.goodi_user)
-        .assert.visible("input[id=txbPassword]")
-        .setValue("input[id=txbPassword]", browser.globals.goodi_pass)
-        .assert.visible("input[id=divSubmitLogin]")
-        .click("input[id=divSubmitLogin]")
-        .waitForElementVisible("#UCLeftAmount", 10000)
-        .getText("#UCLeftAmount", function (result) {
-          if (result.value) {
-            daily_amount = parseInt(result.value.replace("₪", ""));
-            if (!isNaN(daily_amount)) {
-              is_daily_good = daily_amount === 150;
-            }
-          }
-          this.assert.equal(
-            true,
-            is_daily_good,
-            `if enough shekels: ${daily_amount}`
-          );
-        });
-    };
-
-    const isReady = async () => {
-      const startTime = new Date();
-      let id;
-      let foundIt = false;
-      const ready = "#divNoSearchResultMessage";
-      const onElement = (result) => {
-        if (result.status === -1) {
-          foundIt = true;
-        }
-      };
-
-      return new Promise((resolve, reject) => {
-        const checkElement = () => {
-          browser.element("css selector", ready, onElement);
-          let timeDiff = new Date() - startTime; //in ms
-          let seconds = Math.round((timeDiff /= 1000));
-          console.log(`Waiting for list to load, ${seconds} have passed`);
-          if (foundIt) {
-            resolve(true);
-            clearInterval(id);
-          }
-        };
-        id = setInterval(checkElement, 3000);
-      });
-    };
-
-    const closeTabs = async () => {
-      const clearSearch = (done) => {
-        if ($("#divResetSearch").length) {
-          $("#divResetSearch").click();
-          setTimeout(done, 2000, "Clear Search GOOD");
-        } else {
-          done("Clear Search bad");
-        }
-      };
-
-      const closeTab = (done) => {
-        if ($("#divCloseTab").length) {
-          $("#divCloseTab").click();
-          setTimeout(done, 3000, "Close Tab GOOD");
-        } else {
-          done("Close Tab bad");
-        }
-      };
-
-      const closeRow = (done) => {
-        if ($("#topSitting").length) {
-          $("#topSitting").click();
-          setTimeout(done, 2000, "Close Row GOOD");
-        } else {
-          done("Close Row bad");
-        }
-      };
-
-      await browser.executeAsync(closeRow, [], consoleResult);
-      await browser.executeAsync(closeTab, [], consoleResult);
-      await browser.executeAsync(clearSearch, [], consoleResult);
-
-      return true;
-    };
-
-    const goToTakeAway = async () => {
-      await browser.assert
-        .visible("div[id=divTioTakAwayTab]")
-        .click("div[id=divTioTakAwayTab]");
-      await isReady();
-      await browser.assert.visible("input[id=txbInnerHomeSearch]");
-    };
-
-    const checkSupers = async () => {
-      const supers = browser.globals.supermarkets.split(",");
-      for (let index = 0; index < supers.length; index++) {
-        const market = supers[index];
-        if (voucherToBuy !== "") {
-          break;
-        }
-        if (index > 0) {
-          await closeTabs();
-        }
-        await goToTakeAway();
-        await checkSuper(supersConfig[market]);
-      }
-    };
-
-    const jqWaitNClickElement = ({ element, allow = true }, done) => {
-      if (allow) {
-        const wait_until_element_appear = setInterval(() => {
-          if ($(element).length !== 0) {
-            $(element).click();
-            done({ element, allow, noallow: "should allow" });
-            clearInterval(wait_until_element_appear);
-          }
-        }, 0);
-      } else {
-        done({ element, allow, noallow: "no allow" });
-      }
-    };
-
-    const isValueGood = (result) => {
-      if (result.value) {
-        value = parseInt(result.value);
-        if (!isNaN(value)) {
-          console.log("is value good", value);
-          value_is_good = value && value < parseInt(browser.globals.max_amount);
-          return value_is_good;
-        }
-      }
-      value_is_good = false;
-      return value_is_good;
-    };
-
-    const consoleResult = (result) => {
-      console.log(`consoleResult ${JSON.stringify(result)}`);
-      return true;
-    };
-
-    const checkSuper = async (market) => {
-      const jqObject = { element: orderRow, allow: false };
-      let hasRow = false;
-      const enterSearch = (searchText, done) => {
-        $("#txbInnerHomeSearch").focus().val(searchText).trigger("keyup");
-        if ($(".RLOuterRow:visible:first").length) {
-          $(".RLOuterRow:visible:first img").click();
-          setTimeout(done, 2000, "checkSuper Good");
-        } else {
-          done("checkSuper bad");
-        }
-      };
-
-      const openVoucherRow = ({ voucherRow }, done) => {
-        if ($(voucherRow).length) {
-          $(voucherRow).click();
-          setTimeout(done, 2000, true);
-        } else {
-          done(false);
-        }
-      };
-
-      const hasVoucherRow = (result) => {
-        jqObject.allow = result.value;
-        hasRow = result.value;
-        return true;
-      };
-
-      const getVoucher = ({ orderRow }, done) => {
-        if ($(orderRow).length) {
-          const value = $(`${orderRow} .RLMealPrice`).html();
-          setTimeout(done, 2000, value);
-        } else {
-          done({ nvc: "no vocucher row", orderRow });
-        }
-      };
-
-      const setVoucher = (result) => {
-        console.log("setVoucher", result);
-        if (hasRow) {
-          isValueGood(result);
-          if (value_is_good) {
-            voucherToBuy = market.voucherKey;
-            return true;
-          }
-        }
-        return false;
-      };
-
-      await browser
-        .executeAsync(enterSearch, [market.searchText], consoleResult)
-        .executeAsync(openVoucherRow, [{ voucherRow }], hasVoucherRow)
-        .executeAsync(jqWaitNClickElement, [jqObject], consoleResult)
-        .executeAsync(getVoucher, [{ orderRow }], setVoucher);
-    };
-
-    const completeOrder = async () => {
-      console.log("completing order");
-      await browser
-        .click(`${orderRow} .OrderButton`)
-        .waitForElementVisible("#divOrderButton", 10000)
-        .executeAsync(
-          jqWaitNClickElement,
-          [{ element: "#divOrderButton" }],
-          consoleResult
-        )
-        .executeAsync(
-          jqWaitNClickElement,
-          [{ element: ".divSendOrdders" }],
-          consoleResult
-        )
-        .pause(10000)
-        .getText("#UCLeftAmount", function (result) {
-          if (result.value) {
-            we_spent = parseInt(result.value.replace("₪", ""));
-            if (isNaN(we_spent)) {
-              we_spent = 0;
-            }
-          }
-          this.assert.equal(
-            true,
-            150 - we_spent > 0,
-            `we didn't spend anything: ${we_spent}`
-          );
-        });
-
-      return true;
-    };
-
-    await checkShekels(); //Logs in
-    await checkPopup();
-    await checkSupers();
-
-    if (voucherToBuy !== "") {
-      await completeOrder();
-    }
-
-    browser.saveScreenshot("./screenshots/yo.png");
+  SHUFERSAL: {
+    searchText: "שופרסל",
+    voucherKey: "shufer",
+  },
+  VICTORY: {
+    searchText: "ויקטורי",
+    voucherKey: "victory",
   },
 };
+
+const initialiseBroswer = async (browser, page) => {
+  await page.setViewport({ width: 1366, height: 768 });
+  page.setDefaultTimeout(0);
+  await page.goto("https://www.goodi.co.il/");
+  await page.waitForSelector("input[id=txbLoginUserName]");
+  await page.type("input[id=txbLoginUserName]", process.env.GOODI_USER);
+  await page.type("input[id=txbPassword]", process.env.GOODI_PASS);
+  await page.click("input[id=divSubmitLogin]");
+
+  await delay(4000);
+  await page.waitForResponse((response) => response.ok());
+  return true;
+};
+
+const closeTabs = async (page) => {
+  const clearSearch = async () => {
+    try {
+      await page.click("#divResetSearch");
+      console.log("Clear Search GOOD");
+    } catch (error) {
+      console.log("Clear Search NO GOOD");
+      return;
+    }
+  };
+
+  const closeTab = async () => {
+    try {
+      await page.click("#divCloseTab");
+      console.log("Close Tab GOOD");
+    } catch (error) {
+      console.log("Close Tab NO GOOD");
+      return;
+    }
+  };
+
+  const closeRow = async () => {
+    try {
+      await page.click("#topSitting");
+      console.log("Close Row GOOD");
+    } catch (error) {
+      console.log("Close Row NO GOOD");
+      return;
+    }
+  };
+
+  await closeRow();
+  await closeTab();
+  await clearSearch();
+
+  return true;
+};
+
+const checkShekels = async (page) => {
+  const element = await page.waitForSelector("#UCLeftAmount");
+  const value = await element.evaluate((el) => el.textContent);
+  if (value) {
+    daily_amount = parseInt(value.replace("₪", ""));
+    if (!isNaN(daily_amount)) {
+      is_daily_good = daily_amount === 150;
+    }
+  }
+};
+
+const checkPopup = async (page) => {
+  const closePopup = async (popup) => {
+    try {
+      await page.click("input[id=divSubmitLogin]");
+    } catch (error) {
+      return;
+    }
+  };
+  const popups = ["#divClose", "#btnCloseMessageWindow"];
+  for (let index = 0; index < popups.length; index++) {
+    const popup = popups[index];
+    await closePopup(popup);
+  }
+  return true;
+};
+
+const completeOrder = async (page) => {
+  console.log("completing order");
+  await page.waitForSelector("#divOrderButton");
+  await page.click("#divOrderButton");
+  await page.waitForSelector(".divSendOrdders");
+  await page.click(".divSendOrdders");
+  await delay(10000);
+  const element = await page.waitForSelector("#UCLeftAmount");
+  const value = await element.evaluate((el) => el.textContent);
+  we_spent = parseInt(value.replace("₪", ""));
+  if (isNaN(we_spent)) {
+    we_spent = 0;
+  }
+
+  console.log(`completing order we have left ${we_spent}`);
+  return true;
+};
+
+const goToTakeAway = async (page) => {
+  await page.waitForSelector("div[id=divTioTakAwayTab]");
+  await page.click("div[id=divTioTakAwayTab]");
+  await page.waitForSelector("#divNoSearchResultMessage");
+  await page.waitForSelector("#divNoSearchResultMessage", { hidden: true });
+  await page.waitForSelector("#txbInnerHomeSearch");
+};
+
+const triggerSearchText = (searchText) => {
+  const wrapper = $("#txbInnerHomeSearch");
+  wrapper.focus().val(searchText).trigger("keyup");
+};
+
+const enterStore = () => {
+  if ($(".RLOuterRow:visible:first").length) {
+    $(".RLOuterRow:visible:first img").click();
+  }
+};
+
+const findCheapestRow = (ma) => {
+  const maxAmount = parseInt(ma);
+  let minValue;
+  let minItem;
+  let minItemIndex;
+  $(".RLMealPrice").each(function (index) {
+    const val = parseInt($(this).html(), 10);
+    if (val && (!minItem || val < minValue)) {
+      minItem = this;
+      minItemIndex = index;
+      minValue = val;
+    }
+  });
+
+  if (minValue < maxAmount) {
+    let sibling = $(minItem).parents("#MLMealPrice")[0];
+    $(sibling).siblings(".OrderButton").click();
+    return { minItem, minItemIndex, minValue };
+  } else {
+    return { minItemIndex: -1 };
+  }
+};
+
+const checkSuper = async (page, market) => {
+  const { searchText } = market;
+  await page.evaluate(triggerSearchText, searchText);
+  await delay(1000);
+  await page.evaluate(enterStore);
+  await delay(2000);
+  await page.waitForSelector(voucherRow);
+  await page.click(voucherRow);
+  await delay(2000);
+
+  const { minItemIndex } = await page.evaluate(
+    findCheapestRow,
+    process.env.MAX_AMOUNT
+  );
+
+  if (minItemIndex !== -1) {
+    voucherToBuy = minItemIndex;
+  }
+};
+
+const checkSupers = async (page) => {
+  const supers = process.env.SUPERMARKETS.split(",");
+  for (let index = 0; index < supers.length; index++) {
+    const market = supers[index];
+    if (voucherToBuy !== "") {
+      break;
+    }
+    if (index > 0) {
+      await closeTabs(page);
+    }
+    await goToTakeAway(page);
+    await checkSuper(page, supersConfig[market]);
+  }
+};
+
+(async () => {
+  const browser = await puppeteer.launch({ headless: false });
+  const page = await browser.newPage();
+  await initialiseBroswer(browser, page);
+  await checkPopup(page);
+  await checkShekels(page);
+  if (is_daily_good) {
+    await checkSupers(page);
+    if (voucherToBuy !== "") {
+      await completeOrder(page);
+    }
+  }
+
+  //   const rows = await readXlsxFile("semrush.xlsx");
+  await browser.close();
+})();
