@@ -136,9 +136,12 @@ const triggerSearchText = (searchText) => {
 };
 
 const enterStore = () => {
-  if ($(".RLOuterRow:visible:first").length) {
-    $(".RLOuterRow:visible:first img").click();
-  }
+  const wait_until_element_appear = setInterval(() => {
+    if ($(".RLOuterRow:visible:first").length) {
+      $(".RLOuterRow:visible:first img").click();
+      clearInterval(wait_until_element_appear);
+    }
+  }, 0);
 };
 
 const findCheapestRow = (ma) => {
