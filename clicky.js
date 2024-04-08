@@ -25,6 +25,19 @@ const supersConfig = {
   },
 };
 
+const isElementVisible = (page, selector, timeout = 150) => {
+  return new Promise((resolve) => {
+    page
+      .waitForSelector(selector, { visible: true, timeout })
+      .then(() => {
+        resolve(true);
+      })
+      .catch(() => {
+        resolve(false);
+      });
+  });
+};
+
 const initialiseBroswer = async (browser, page) => {
   await page.setViewport({ width: 1366, height: 768 });
   page.setDefaultTimeout(0);
@@ -171,6 +184,12 @@ const checkSuper = async (page, market) => {
   const { searchText } = market;
   await page.evaluate(triggerSearchText, searchText);
   await delay(1000);
+
+  const noResults = await isElementVisible(page, "#divNoSearchResultMessage");
+  if (noResults) {
+    return;
+  }
+
   await page.evaluate(enterStore);
   await delay(2000);
   await page.waitForSelector(voucherRow);
